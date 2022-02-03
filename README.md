@@ -1,61 +1,99 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+## PHP CHALLENGE
+### Name: Abdelkarim CHAMLAL
+### Email: abdelkarim.chamlal@gmail.com 
+### Description: 
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
+My solution is a simple API developed using Laravel framework, the API receives requests from other internal services, and resend the request to the mail delivery service in a way that validates the requests before sending them, and providing a way to track the state of each requests, also ensuring the receiving of the requests to the mail delivery service, and finally offering a priority option for email that has to be dealt with NOW.
 
-## About Laravel
+### Assumptions:
+**Mail Delivery Service offers a priority option with a default value set to NORMAL, and can be set to NOW**
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+ - NORMAL: this means any request will be added to the end of the
+   current stack of requests and for the response of the request return
+   an acceptance state indicating the receiving of the request.
+   
+ - NOW: this means the delivery service will pause dealing with NORMAL
+   requests and deal with this request immediately, and return the
+   results of processing this request as a response to the request
+   without any delay.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Problems & Solutions:
+**Mail delivery service is down? now what!**
+in this case, my solution was to run a schedules task every minute in the background, this task recalls all requests from database with a state of **NOT ACCEPTED** and resends the request to the mail delivery service, and update the state to **ACCEPTED** if the service received the request this time.
 
-## Learning Laravel
+### API ENDPOINTS:
+**/send :**
+this endpoint receives a post call with a json body containing the following fields:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+    {
+    	"sender": "sender@example.com",
+    	"recipient": "recipient@example.com",
+    	"message": "Hello, World!"
+    }
+if any of those fields are missing the endpoint returns: (http code 500)
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+    {
+	    "STATUS":  "DENIED",
+	    "ERROR":  "MISSING FIELDS"
+    }
+in case sender or recipient are not valid emails: (http code 500)
 
-## Laravel Sponsors
+    {
+    	"STATUS":  "DENIED",
+    	"ERROR":  "EMAILS ARE NOT VALID"
+    }
+in case every thing is valid: (http code 200)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+    {
+	    "STATUS":  "ACCEPTED",
+	    "REQUEST_ID":  "1a4ef1898d325d2fcd3ea43cc513ec35a83060d803668a81a1e75c02da99c1c0"
+    }
+or in case the mail delivery service is down:
 
-### Premium Partners
+    {
+	    "STATUS":  "NOT ACCEPTED",
+	    "REQUEST_ID":  "be7aefa01fea6935c3d7800574b6f299677f4a65fe1069ced33b88ca00ea7787",
+	    "MSG":  "MAIL DELIVERY SERVICE IS DOWN,WE WILL RESEND THE REQUEST AUTOMATICALLY WHEN IT GOES UP AGAIN"
+    }
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[OP.GG](https://op.gg)**
+this is all there is to the **/send** endpoint.
 
-## Contributing
+**/status/{request_id} :**
+this endpoint accepts GET requests with replacing the {request_id} to the request id provided by the /send endpoint
+##### example:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+    http://example.com/status/be7aefa0...f4a..0ea7787
 
-## Code of Conduct
+response:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+    {
+	    "status":  "NOT ACCEPTED" | "ACCEPTED" | "DELIVERED" | "FAILED" | "REJECTED",
+	    "request_id":  "be7aefa0...f4a..0ea7787"
+    }
+that all there is to **/status/{request_id}** endpoint.
 
-## Security Vulnerabilities
+**/callback :**
+this endpoint receives POST request, its objective is to receive the webhook calls from the mail delivery service when processing the NORMAL priority requests.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+##### request example:
 
-## License
+    {
+	    "ID":  "be7aefa0...f4a..0ea7787",
+	    "STATUS":  "REJECTED"
+    }
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+##### response:
+
+    {}
+with http code 200 incase every thing went well
+or
+
+    {
+	    "ERROR":  "INVALIDE REQUEST"
+    }
+in case of a bad request.
+
+## Mail Delivery Service ( Mock )
+
+for the sake of this challenge I created a fake mail delivery service, which will play the role of a real life ail delivery service.
