@@ -94,6 +94,32 @@ or
     }
 in case of a bad request.
 
-## Mail Delivery Service ( Mock )
+## Mail Delivery Service ( Mockup )
 
-for the sake of this challenge I created a fake mail delivery service, which will play the role of a real life ail delivery service.
+for the sake of this challenge I created a mockup mail delivery service, which will play the role of a real life mail delivery service.
+
+### /api/emails:
+this end point accepts a post request
+
+    {
+	    "request_id": "be7aefa0...f4a..0ea7787",
+    	"sender": "sender@example.com",
+    	"recipient": "recipient@example.com",
+    	"priority": "NORMAL" | "NOW",
+    	"message": "Hello, World!"
+    }
+
+another component to this mail delivery service mockup is a scheduled task which plays the role of the webhook, which runs every minute and updates any request with a state of "ACCEPTED" into "DELIVERED" | "REJECTED" | "FAILED" by sending a request to **/callback** endpoint in out project.
+
+with this all the components are explained.
+
+## Project setup
+
+ - to setup this project, start by cloning this repository into your
+   computer.
+ - edit the .env.example file and rename it to .env
+ - make vhost to access your project easily.
+ - inside the project folder run:
+`php artisan migrate`
+ - if in windows please add a task from task scheduler app on windows.
+`path_to_php.exe path_to_project\artisan schedule:run`
